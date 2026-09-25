@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "iqdrop"
+version = "0.1.0"
+description = "Catch silent quality drops in Codex and Claude Code: score every answer with an independent judge (Jev)."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "cyw6130" }]
+keywords = ["codex", "claude-code", "llm", "evaluation", "hooks"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/cyw6130/iqdrop"
+
+[project.scripts]
+iqdrop = "iqdrop.__main__:main"
+
+[tool.setuptools]
+packages = ["iqdrop"]
