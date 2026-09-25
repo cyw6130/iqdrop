@@ -17,12 +17,20 @@ For every answer, Jev returns:
 
 | Item | Meaning |
 |---|---|
-| **Answer IQ** (0–100) | For a final answer: quality of the delivered result (correct, complete, usable, verified). For a progress update or a checkpoint that asks you before continuing: whether the progress is accurate, the question or plan well posed, and the pause sensible |
+| **Answer IQ** (0–100) | Graded with the rubric that fits the reply (see below) |
 | **Understanding** (0–100) | How well the answer grasped the goal, scope, constraints and implied intent |
 | **Speed** | Whether the wall-clock time was reasonable for the task |
 | **Checks** | Yes/no diagnostics: factual or reasoning error, unverified claims, incomplete delivery, broke an explicit constraint, off target, stopped needlessly |
 
-Jev first classifies each reply as a final answer, a progress update or a checkpoint, and Answer IQ uses the rubric that fits: asking before acting is often the right call and should not be graded as a failed delivery. Both scores are kept in the record.
+Jev first classifies each reply, and Answer IQ uses the rubric that fits it. All three scores are kept in the record.
+
+| Reply kind | What Answer IQ grades |
+|---|---|
+| Final answer | The delivered result: correct, complete, usable, verified |
+| Mid-task progress report | Orchestration: sensible split, suitable workers (sub-agents, other models, background jobs), parallel where independent, waiting time used, clear instructions and acceptance checks for delegated work, accurate status, a plan to verify results |
+| Checkpoint (asks you before continuing) | Whether the question or plan is well posed, comes with a clear recommendation, and whether pausing was the right call |
+
+Asking before acting is often correct, and a progress report is not a failed delivery, so neither is graded against the final result. Jev only sees text, so orchestration is judged from what the report says was dispatched.
 
 A check is shown when Jev puts its probability at or above the threshold (50% by default; 70% for "stopped needlessly", which is partly a matter of taste). "Incomplete delivery" and "unverified claims" are only shown for final answers; "stopped needlessly" only for the others.
 

@@ -19,6 +19,7 @@ def config(tmp, **overrides):
 def jev_payload(iq=2.6, understanding=3.5, checks=None, kind='final'):
     answers = {
         'answer_iq': {'score': iq, 'probabilities': {'2': 0.5, '3': 0.5}},
+        'dispatch_iq': {'score': 2.0, 'probabilities': {'2': 1.0}},
         'pause_iq': {'score': 3.0, 'probabilities': {'3': 1.0}},
         'answer_kind': {'choice': kind},
         'intent_understanding': {'score': understanding, 'probabilities': {'4': 0.8}},
@@ -60,7 +61,7 @@ class GradeTest(unittest.TestCase):
         self.assertEqual(set(hook.CHECKS) <= set(sent['questions']), True)
         self.assertEqual(sent['state']['elapsed_seconds'], 12.0)
         self.assertEqual(scores, {'answer_iq': 65.0, 'intent_understanding': 87.5,
-                                  'result_iq': 65.0, 'pause_iq': 75.0})
+                                  'result_iq': 65.0, 'dispatch_iq': 50.0, 'pause_iq': 75.0})
         self.assertEqual(evidence['checks'], {'unverified_claim': 0.77, 'off_target': 0.1})
 
     def test_checkpoint_is_shown_with_the_pause_rubric_score(self):
@@ -70,6 +71,13 @@ class GradeTest(unittest.TestCase):
             scores, evidence = hook.grade(config(tmp), 'name it', 'Pick one: a or b?', [], None)
         self.assertEqual(evidence['answer_kind'], 'checkpoint')
         self.assertEqual((scores['answer_iq'], scores['result_iq']), (75.0, 25.0))
+
+    def test_progress_report_is_shown_with_the_dispatch_rubric_score(self):
+        payload = jev_payload(iq=1.0, kind='interim')
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch('urllib.request.urlopen', return_value=FakeResponse(json.dumps(payload).encode())):
+            scores, _ = hook.grade(config(tmp), 'run it', 'Four jobs running in parallel.', [], None)
+        self.assertEqual(scores['answer_iq'], 50.0)
 
     def test_missing_key_is_reported(self):
         with tempfile.TemporaryDirectory() as tmp:
