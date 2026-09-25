@@ -16,9 +16,11 @@ def config(tmp, **overrides):
     return value
 
 
-def jev_payload(iq=2.6, understanding=3.5, checks=None):
+def jev_payload(iq=2.6, understanding=3.5, checks=None, kind='final'):
     answers = {
         'answer_iq': {'score': iq, 'probabilities': {'2': 0.5, '3': 0.5}},
+        'pause_iq': {'score': 3.0, 'probabilities': {'3': 1.0}},
+        'answer_kind': {'choice': kind},
         'intent_understanding': {'score': understanding, 'probabilities': {'4': 0.8}},
         'response_speed': {'choice': 'normal'},
     }
@@ -57,8 +59,17 @@ class GradeTest(unittest.TestCase):
         sent = json.loads(urlopen.call_args[0][0].data)
         self.assertEqual(set(hook.CHECKS) <= set(sent['questions']), True)
         self.assertEqual(sent['state']['elapsed_seconds'], 12.0)
-        self.assertEqual(scores, {'answer_iq': 65.0, 'intent_understanding': 87.5})
+        self.assertEqual(scores, {'answer_iq': 65.0, 'intent_understanding': 87.5,
+                                  'result_iq': 65.0, 'pause_iq': 75.0})
         self.assertEqual(evidence['checks'], {'unverified_claim': 0.77, 'off_target': 0.1})
+
+    def test_checkpoint_is_shown_with_the_pause_rubric_score(self):
+        payload = jev_payload(iq=1.0, kind='checkpoint')
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch('urllib.request.urlopen', return_value=FakeResponse(json.dumps(payload).encode())):
+            scores, evidence = hook.grade(config(tmp), 'name it', 'Pick one: a or b?', [], None)
+        self.assertEqual(evidence['answer_kind'], 'checkpoint')
+        self.assertEqual((scores['answer_iq'], scores['result_iq']), (75.0, 25.0))
 
     def test_missing_key_is_reported(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -87,20 +98,20 @@ class LabelTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertTrue(hook.label(config(tmp), record).endswith('Jev checks: no clear problems.'))
 
-    def test_progress_update_hides_iq_and_final_only_checks(self):
+    def test_progress_update_skips_final_only_checks(self):
         record = {**self.record, 'answer_kind': 'interim', 'iq_alert': False,
                   'checks': {'missing_deliverable': 0.9, 'unverified_claim': 0.9,
                              'factual_error': 0.6, 'needless_pause': 0.65}}
         with tempfile.TemporaryDirectory() as tmp:
             line = hook.label(config(tmp), record)
-        self.assertEqual(line, '⏸ progress update · Understanding: 90.8/100 · 🚧 Slow · '
+        self.assertEqual(line, '🟢 Answer IQ: 52.8/100 · Understanding: 90.8/100 · 🚧 Slow · '
                                'Jev checks: factual or reasoning error (60%).')
 
     def test_confident_needless_pause_is_shown(self):
         record = {**self.record, 'answer_kind': 'checkpoint', 'checks': {'needless_pause': 0.8}}
         with tempfile.TemporaryDirectory() as tmp:
             line = hook.label(config(tmp, lang='zh'), record)
-        self.assertEqual(line, '⏸ 待你确认 · 理解度：90.8/100 · 🚧 偏慢 · Jev 检查：不必要的停顿(80%)。')
+        self.assertEqual(line, '🔴 回答智商分：52.8/100 · 理解度：90.8/100 · 🚧 偏慢 · Jev 检查：不必要的停顿(80%)。')
 
     def test_unscored_explains_why(self):
         with tempfile.TemporaryDirectory() as tmp:

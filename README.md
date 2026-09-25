@@ -7,7 +7,6 @@ Catch silent quality drops in your coding agent. iqdrop hooks into **Codex** and
 ```
 🟢 Answer IQ: 74.2/100 · Understanding: 95.8/100 · Speed normal · Jev checks: no clear problems.
 🔴 Answer IQ: 47.8/100 · Understanding: 84.8/100 · Speed normal · Jev checks: unverified claims (84%); factual or reasoning error (69%).
-⏸ waiting on you · Understanding: 79.5/100 · Speed normal · Jev checks: no clear problems.
 ```
 
 It grades the work you are actually doing, turn by turn, instead of a fixed benchmark. When the answers you get start scoring lower, you see it as it happens, not days later.
@@ -18,15 +17,16 @@ For every answer, Jev returns:
 
 | Item | Meaning |
 |---|---|
-| **Answer IQ** (0–100) | Quality of the delivered result: correct, complete, usable, verified |
+| **Answer IQ** (0–100) | For a final answer: quality of the delivered result (correct, complete, usable, verified). For a progress update or a checkpoint that asks you before continuing: whether the progress is accurate, the question or plan well posed, and the pause sensible |
 | **Understanding** (0–100) | How well the answer grasped the goal, scope, constraints and implied intent |
 | **Speed** | Whether the wall-clock time was reasonable for the task |
-| **Reply kind** | Final answer, progress update, or checkpoint (asking you before continuing) |
 | **Checks** | Yes/no diagnostics: factual or reasoning error, unverified claims, incomplete delivery, broke an explicit constraint, off target, stopped needlessly |
 
-A check is shown when Jev puts its probability at or above the threshold (50% by default; 70% for "stopped needlessly", which is partly a matter of taste). Progress updates and checkpoints are not given an Answer IQ, because the IQ rubric grades delivered results, and asking before acting is often the right call.
+Jev first classifies each reply as a final answer, a progress update or a checkpoint, and Answer IQ uses the rubric that fits: asking before acting is often the right call and should not be graded as a failed delivery. Both scores are kept in the record.
 
-A red light means Answer IQ is below 60 on a final answer.
+A check is shown when Jev puts its probability at or above the threshold (50% by default; 70% for "stopped needlessly", which is partly a matter of taste). "Incomplete delivery" and "unverified claims" are only shown for final answers; "stopped needlessly" only for the others.
+
+A red light means Answer IQ is below 60.
 
 ## Install
 
