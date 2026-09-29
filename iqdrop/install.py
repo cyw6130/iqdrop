@@ -14,6 +14,43 @@ from pathlib import Path
 from iqdrop.hook import CONFIG_FILE, TEXT
 
 HOOK_SCRIPT = Path(__file__).resolve().with_name('hook.py')
+STATS_SCRIPT = HOOK_SCRIPT.with_name('stats.py')
+SKILL_NAME = 'iqdrop-stats'
+SKILL = '''---
+name: iqdrop-stats
+description: >-
+  Report how smart the current coding agent has been recently, from the iqdrop scores that
+  Jev gave its answers: average Answer IQ and Understanding over the last few hours, compared
+  with the same model's own baseline, plus the most frequent problems and the lowest-scored
+  answers. Use when the user asks how the agent or model has been doing, whether it got
+  dumber or was nerfed, for its IQ over the last N hours, or for iqdrop stats. 用户问“最近 3
+  小时智商怎么样”“是不是降智了”“这个模型最近表现如何”时使用。
+---
+
+# iqdrop stats
+
+Run this and show the output to the user as is:
+
+```bash
+{command} --client {client} --hours 3
+```
+
+- Change `--hours` when the user names another window ("today" is `--hours 24`).
+- Add `--model <id>` to look at a specific model; by default it reports the model behind the
+  most recent scored answer, which is normally the one you are running as.
+- Add `--json` if you need the raw numbers.
+
+After the output, add at most two sentences of reading:
+
+- The baseline comparison is by reply kind, so a mix with more checkpoints does not look like
+  an improvement. A drop of 10 points or more against the baseline, over at least 5 answers,
+  is worth pointing out; smaller moves are noise.
+- Say plainly when the sample is small or there is no baseline yet. Do not claim the model was
+  degraded on this evidence alone: scores depend on task difficulty and come from another
+  model.
+
+Scores live in `~/.iqdrop/{client}/scores/`. Do not edit or delete them.
+'''
 MARKER = 'iqdrop'
 
 
@@ -102,6 +139,20 @@ def uninstall(client: str) -> Path:
     return path
 
 
+def skill_dir(client: str) -> Path:
+    if client == 'codex':
+        return Path(os.environ.get('CODEX_HOME') or Path.home() / '.codex') / 'skills' / SKILL_NAME
+    return Path(os.environ.get('CLAUDE_CONFIG_DIR') or Path.home() / '.claude') / 'skills' / SKILL_NAME
+
+
+def install_skill(client: str) -> Path:
+    command = ' '.join(shlex.quote(part) for part in (interpreter(), str(STATS_SCRIPT)))
+    path = skill_dir(client) / 'SKILL.md'
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(SKILL.replace('{command}', command).replace('{client}', client), encoding='utf-8')
+    return path
+
+
 def set_config(updates: dict) -> None:
     lines = CONFIG_FILE.read_text(encoding='utf-8').splitlines() if CONFIG_FILE.exists() else []
     lines = [line for line in lines if line.partition('=')[0].strip().removeprefix('export ').strip()
@@ -118,6 +169,8 @@ def main(argv: list[str] | None = None) -> None:
     for name in ('install', 'uninstall'):
         sub = commands.add_parser(name, help=f'{name} the hooks')
         sub.add_argument('client', choices=('codex', 'claude', 'all'))
+    skill = commands.add_parser('install-skill', help='install the iqdrop-stats skill')
+    skill.add_argument('client', choices=('codex', 'claude', 'all'))
     commands.add_parser('set-key', help='store your Typesafe (Jev) API key')
     lang = commands.add_parser('set-lang', help='language of the score line')
     lang.add_argument('lang', choices=sorted(TEXT))
@@ -130,6 +183,9 @@ def main(argv: list[str] | None = None) -> None:
         if 'codex' in clients:
             print('Codex: open Settings > Hooks and trust the two new iqdrop hooks.')
         print(f'Next: run `iqdrop set-key` if you have not stored a Jev key yet ({CONFIG_FILE}).')
+    elif args.command == 'install-skill':
+        for client in clients:
+            print(f'installed the {SKILL_NAME} skill for {client} at {install_skill(client)}')
     elif args.command == 'uninstall':
         for client in clients:
             print(f'removed {client} hooks from {uninstall(client)}')

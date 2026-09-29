@@ -64,8 +64,32 @@ The installer merges its two hooks (UserPromptSubmit and Stop) into `~/.codex/ho
 | `IQDROP_LANG` | `en` | Score line language: `en` or `zh` (`iqdrop set-lang zh`) |
 | `IQDROP_CHECK_THRESHOLD` | `0.5` | Show a check at or above this probability |
 | `IQDROP_ALERT_BELOW` | `60` | Red light below this Answer IQ |
-| `IQDROP_NOTIFY` | `0` | `1` also posts a macOS notification |
+| `IQDROP_NOTIFY` | `0` | `1` also posts a macOS notification; `codex` or `claude` limits it to one client |
 | `IQDROP_DATA_DIR` | `~/.iqdrop` | Where score records are kept |
+
+## How has the model been doing lately?
+
+```bash
+iqdrop stats --client codex --hours 3
+```
+
+```
+gpt-6-astra · last 3 h · 19 scored answers (final 5 / checkpoint 14)
+
+Answer IQ: 78.1 (+4.1 vs baseline, same reply kinds)
+  final answers only: 55.7 (+0.8 vs baseline, same reply kinds)
+Understanding: 88.2 (+0.9 vs baseline, same reply kinds)
+red lights: 3/19
+Baseline, previous 7 days: Answer IQ 61.7 · Understanding 86.4 · n=326
+```
+
+It reports the model behind the latest answer (`--model` to pick another), compares it with the same model's previous 7 days (`--baseline-days`), and lists the most frequent problems and the lowest-scored answers. The comparison is made reply kind by reply kind, so a stretch with more checkpoints, which score higher, does not look like an improvement. `--json` gives raw numbers.
+
+To ask the agent directly ("how smart have you been in the last 3 hours?"), install the skill:
+
+```bash
+iqdrop install-skill codex     # or claude / all
+```
 
 ## Where to see the evidence
 
@@ -92,7 +116,7 @@ Jev charges per input token, about 2,000 tokens per answer, which is roughly US$
 
 ## Roadmap
 
-- Trend alerts: keep a per-model baseline and warn when scores drift down over time.
+- Trend alerts: warn automatically when a model drifts below its baseline (`iqdrop stats` already computes the comparison on demand).
 - Optional tool-call summaries so Jev can see verification that happened outside the answer text.
 
 ## Related projects

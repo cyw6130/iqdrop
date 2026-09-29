@@ -10,6 +10,9 @@ def main() -> None:
     if action in ('capture', 'score', 'explain'):
         from iqdrop import hook
         hook.main(sys.argv[1:])
+    elif action == 'stats':
+        from iqdrop import stats
+        stats.main(sys.argv[2:])
     else:
         from iqdrop import install
         install.main(sys.argv[1:])

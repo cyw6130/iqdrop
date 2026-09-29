@@ -65,8 +65,32 @@ iqdrop install all      # 或 iqdrop install codex / iqdrop install claude
 | `IQDROP_LANG` | `en` | 评分行语言：`en` 或 `zh` |
 | `IQDROP_CHECK_THRESHOLD` | `0.5` | 检查项的显示门槛 |
 | `IQDROP_ALERT_BELOW` | `60` | 智商分低于此值亮红灯 |
-| `IQDROP_NOTIFY` | `0` | 设为 `1` 时同时弹出 macOS 通知 |
+| `IQDROP_NOTIFY` | `0` | 设为 `1` 时同时弹出 macOS 通知；设为 `codex` 或 `claude` 则只对这一个助手弹 |
 | `IQDROP_DATA_DIR` | `~/.iqdrop` | 评分记录的存放位置 |
+
+## 最近表现怎么样？
+
+```bash
+iqdrop stats --client codex --hours 3
+```
+
+```
+gpt-6-astra · 最近 3 小时 · 共 19 条（最终回答 5 / 待你确认 14）
+
+平均回答智商分: 78.1（按同类回复比基线 +4.1）
+  仅最终回答: 55.7（按同类回复比基线 +0.8）
+平均理解度: 88.2（按同类回复比基线 +0.9）
+红灯: 3/19
+基线：此前 7 天: 平均回答智商分 61.7 · 平均理解度 86.4 · n=326
+```
+
+默认统计最近一条回答所用的模型（用 `--model` 可指定其他模型），和同一模型此前 7 天的表现对比（`--baseline-days` 可调），并列出最常见的问题和得分最低的几条。对比按回复类型分别进行：某段时间"待你确认"较多时，因为这类回复分数本来就偏高，不会被误当成进步。加 `--json` 输出原始数据。
+
+想直接问助手"你最近 3 小时智商怎么样"，装上 skill：
+
+```bash
+iqdrop install-skill codex     # 或 claude / all
+```
 
 ## 查看评分依据
 
@@ -93,7 +117,7 @@ Jev 按输入 token 计费，每条回答约 2000 token。按官方价格每百�
 
 ## 计划
 
-- 趋势报警：按模型保存基线，分数持续下滑时提醒。
+- 趋势报警：模型分数持续低于自身基线时自动提醒（`iqdrop stats` 已经能按需算出这个对比）。
 - 可选地附上工具调用摘要，让 Jev 看到回答文字之外的验证过程。
 
 ## 相关项目

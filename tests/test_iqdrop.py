@@ -11,7 +11,7 @@ from iqdrop import hook, install
 
 def config(tmp, **overrides):
     value = {'key': 'test-key', 'lang': 'en', 'check_threshold': 0.5, 'alert_below': 60,
-             'notify': False, 'data_dir': Path(tmp), 'jev_model': 'jev-test'}
+             'notify': set(), 'data_dir': Path(tmp), 'jev_model': 'jev-test'}
     value.update(overrides)
     return value
 
@@ -181,6 +181,17 @@ class HandleTest(unittest.TestCase):
             grade.assert_not_called()
         finally:
             os.unlink(path)
+
+    def test_notification_can_be_limited_to_one_client(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(hook, 'notify') as notify, \
+                mock.patch.object(hook, 'grade', return_value=(
+                    {'answer_iq': 80.0, 'intent_understanding': 90.0}, {'checks': {}})):
+            conf = config(tmp, notify={'codex'})
+            for client, turn in (('codex', {'turn_id': 't1'}), ('claude', {})):
+                hook.handle({'session_id': 's', **turn, 'hook_event_name': 'UserPromptSubmit', 'prompt': 'p'}, client, conf)
+                hook.handle({'session_id': 's', **turn, 'hook_event_name': 'Stop',
+                             'last_assistant_message': 'a'}, client, conf)
+        self.assertEqual(notify.call_count, 1)
 
     def test_forced_continuation_is_not_scored_again(self):
         with tempfile.TemporaryDirectory() as tmp:

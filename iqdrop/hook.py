@@ -176,7 +176,8 @@ def settings() -> dict:
         'lang': lang if lang in TEXT else 'en',
         'check_threshold': number('IQDROP_CHECK_THRESHOLD', 0.5),
         'alert_below': number('IQDROP_ALERT_BELOW', 60),
-        'notify': values.get('IQDROP_NOTIFY', '0').lower() in ('1', 'true', 'yes', 'on'),
+        # '1' notifies for every client; a comma list such as 'codex' limits it to those.
+        'notify': {part.strip() for part in values.get('IQDROP_NOTIFY', '0').lower().split(',')},
         'data_dir': Path(values.get('IQDROP_DATA_DIR') or Path.home() / '.iqdrop').expanduser(),
         'jev_model': values.get('IQDROP_JEV_MODEL', DEFAULT_JEV_MODEL),
     }
@@ -406,7 +407,7 @@ def label(config: dict, record: dict) -> str:
     parts = [f'{"🔴" if record["iq_alert"] else "🟢"} {text["iq"]}{colon}{points["answer_iq"]:g}/100',
              f'{text["understanding"]}{colon}{points["intent_understanding"]:g}/100']
     if record.get('elapsed_seconds') is not None:
-        parts.append(text['speed'][record['speed_judgment'].get('choice', 'uncertain')])
+        parts.append(text['speed'][(record.get('speed_judgment') or {}).get('choice', 'uncertain')])
     checks = record.get('checks') or {}
     if checks:
         skipped = ('needless_pause',) if final else FINAL_ONLY_CHECKS
@@ -503,7 +504,7 @@ def handle(event: dict, client: str, config: dict | None = None) -> dict:
         where['prompt'].unlink(missing_ok=True)
     except OSError:
         pass
-    if config['notify']:
+    if config['notify'] & {'1', 'true', 'yes', 'on', 'all', client}:
         notify(message)
     # systemMessage shows the score to the user without adding a model turn.
     return {'continue': True, 'systemMessage': message}
