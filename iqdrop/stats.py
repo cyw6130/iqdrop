@@ -221,15 +221,15 @@ def models_main(argv: list[str] | None = None) -> None:
     parser.add_argument('--json', action='store_true')
     args = parser.parse_args(argv)
     config = settings()
+    # One ranking across clients, so Codex and Claude Code models can be compared side by side.
     clients = ('codex', 'claude') if args.client == 'all' else (args.client,)
-    output = {client: by_model(load(config['data_dir'] / client), args.days, args.period)
-              for client in clients}
+    records = [r for client in clients for r in load(config['data_dir'] / client)]
+    models = by_model(records, args.days, args.period)
     if args.json:
-        print(json.dumps(output, ensure_ascii=False, indent=2))
+        print(json.dumps(models, ensure_ascii=False, indent=2))
         return
-    blocks = [render_models(models, client, args.days, args.period, config['lang'])
-              for client, models in output.items() if models or args.client != 'all']
-    print('\n\n'.join(blocks) or TEXT[config['lang']]['models_none'].format(client=args.client, days=args.days))
+    label = ' + '.join(c.capitalize() if c == 'codex' else 'Claude Code' for c in clients)
+    print(render_models(models, label, args.days, args.period, config['lang']))
 
 
 def main(argv: list[str] | None = None) -> None:

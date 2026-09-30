@@ -89,7 +89,7 @@ gpt-6-astra · 最近 3 小时 · 共 19 条（最终回答 5 / 待你确认 14�
 ### 各模型分数
 
 ```bash
-iqdrop models --days 7 --period day      # --period 可选 day、6h、3h、hour
+iqdrop models --days 7 --period day      # --period 可选 day、6h、3h、hour；Codex 和 Claude Code 合在一起排
 ```
 
 ```

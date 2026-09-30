@@ -88,7 +88,7 @@ It reports the model behind the latest answer (`--model` to pick another), compa
 ### Score per model
 
 ```bash
-iqdrop models --days 7 --period day      # --period: day, 6h, 3h or hour
+iqdrop models --days 7 --period day      # --period: day, 6h, 3h or hour; Codex and Claude Code together
 ```
 
 ```

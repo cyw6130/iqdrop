@@ -45,10 +45,11 @@ When the user asks for a score per model, how each model has done over its histo
 a model varied over time, run this instead and show the output as is:
 
 ```bash
-{command} models --client {client} --days 7 --period day
+{command} models --client all --days 7 --period day
 ```
 
-`--period` can be `day`, `6h`, `3h` or `hour`; use a shorter period when the user suspects the
+It ranks the models of both Codex and Claude Code together. `--period` can be `day`, `6h`,
+`3h` or `hour`; use a shorter period when the user suspects the
 model swings within a day. Scores here are a plain average of all replies. Periods marked as a
 small sample (fewer than 5 answers) should not be read as a change.
 
