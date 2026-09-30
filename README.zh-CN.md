@@ -111,7 +111,7 @@ iqdrop install-skill codex     # 或 claude / all
 
 | Skill | 可以这样问 | 回答内容 |
 |---|---|---|
-| `iqdrop-now` | "最近 3 小时你的智商怎么样？" | 一行：当前 agent 在这段时间的平均回答智商分和平均理解度（`iqdrop now --hours 3`） |
+| `iqdrop-recently` | "最近 3 小时你的智商怎么样？" | 一行：当前 agent 在这段时间的平均回答智商分和平均理解度（`iqdrop recently --hours 3`） |
 | `iqdrop-history` | "各个模型分数怎么样？""astra 按 6 小时看一下" | 上面的各模型历史分数（`iqdrop models`） |
 
 "当前 agent"指你提问所在会话里最近一条回答所用的模型；如果是新会话、还没有评分记录，就取所有记录里最近一条的模型。

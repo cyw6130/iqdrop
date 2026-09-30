@@ -15,10 +15,10 @@ from iqdrop.hook import CONFIG_FILE, TEXT
 
 HOOK_SCRIPT = Path(__file__).resolve().with_name('hook.py')
 STATS_SCRIPT = HOOK_SCRIPT.with_name('stats.py')
-LEGACY_SKILLS = ('iqdrop-stats',)
+LEGACY_SKILLS = ('iqdrop-stats', 'iqdrop-now')
 SKILLS = {
-    'iqdrop-now': '''---
-name: iqdrop-now
+    'iqdrop-recently': '''---
+name: iqdrop-recently
 description: >-
   Report the current coding agent's average iqdrop score over the last few hours: how many
   answers Jev scored and their average Answer IQ and Understanding, for the model this session
@@ -27,12 +27,12 @@ description: >-
   comparisons between models, use iqdrop-history instead.
 ---
 
-# iqdrop now
+# iqdrop recently
 
 Run this and show its one-line output to the user as is:
 
 ```bash
-{command} now --client {client} --hours 3
+{command} recently --client {client} --hours 3
 ```
 
 - Change `--hours` when the user names another window ("today" is `--hours 24`).
@@ -47,7 +47,7 @@ description: >-
   its history, split by day or by hours to show how it varied, with Codex and Claude Code models
   ranked together. Use when the user asks for a score per model, how models compare, a model's
   long-term or historical performance, or whether a model swings over time, e.g. "各个模型分数怎么样"
-  "astra 按 6 小时看一下" "长期表现如何". For just the current agent's recent average, use iqdrop-now.
+  "astra 按 6 小时看一下" "长期表现如何". For just the current agent's recent average, use iqdrop-recently.
 ---
 
 # iqdrop history
@@ -194,7 +194,7 @@ def main(argv: list[str] | None = None) -> None:
     for name in ('install', 'uninstall'):
         sub = commands.add_parser(name, help=f'{name} the hooks')
         sub.add_argument('client', choices=('codex', 'claude', 'all'))
-    skill = commands.add_parser('install-skill', help='install the iqdrop-now and iqdrop-history skills')
+    skill = commands.add_parser('install-skill', help='install the iqdrop-recently and iqdrop-history skills')
     skill.add_argument('client', choices=('codex', 'claude', 'all'))
     commands.add_parser('set-key', help='store your Typesafe (Jev) API key')
     lang = commands.add_parser('set-lang', help='language of the score line')

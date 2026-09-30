@@ -16,9 +16,9 @@ def main() -> None:
     elif action == 'models':
         from iqdrop import stats
         stats.models_main(sys.argv[2:])
-    elif action == 'now':
+    elif action == 'recently':
         from iqdrop import stats
-        stats.now_main(sys.argv[2:])
+        stats.recently_main(sys.argv[2:])
     else:
         from iqdrop import install
         install.main(sys.argv[1:])

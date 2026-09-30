@@ -110,7 +110,7 @@ This installs two skills:
 
 | Skill | Ask something like | Answers with |
 |---|---|---|
-| `iqdrop-now` | "How smart have you been in the last 3 hours?" | One line: the current agent's average Answer IQ and Understanding over the window (`iqdrop now --hours 3`) |
+| `iqdrop-recently` | "How smart have you been in the last 3 hours?" | One line: the current agent's average Answer IQ and Understanding over the window (`iqdrop recently --hours 3`) |
 | `iqdrop-history` | "How does each model score?" "Show astra by 6 hours" | The per-model history above (`iqdrop models`) |
 
 The current agent is the model behind the latest answer in the session you ask from; in a fresh session with no scored answer yet, the latest answer overall.

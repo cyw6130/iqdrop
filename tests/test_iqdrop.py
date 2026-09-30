@@ -284,9 +284,9 @@ class InstallTest(unittest.TestCase):
         legacy.parent.mkdir(parents=True)
         legacy.write_text('name: iqdrop-stats')
         paths = install.install_skills('codex')
-        self.assertEqual(sorted(p.parent.name for p in paths), ['iqdrop-history', 'iqdrop-now'])
+        self.assertEqual(sorted(p.parent.name for p in paths), ['iqdrop-history', 'iqdrop-recently'])
         self.assertFalse(legacy.parent.exists())
-        self.assertIn('now --client codex --hours 3', paths[0].read_text() + paths[1].read_text())
+        self.assertIn('recently --client codex --hours 3', paths[0].read_text() + paths[1].read_text())
 
     def test_set_config_replaces_existing_value(self):
         conf = Path(self.tmp.name) / 'config.env'

@@ -198,8 +198,8 @@ def render_current(summary: dict, lang: str) -> str:
     return line + (f'（{text["few"]}）' if lang == 'zh' else f' ({text["few"]})') * (summary['n'] < 5)
 
 
-def now_main(argv: list[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(prog='iqdrop now',
+def recently_main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(prog='iqdrop recently',
                                      description="The current agent's average score over the last few hours")
     parser.add_argument('--client', choices=('codex', 'claude'), default='codex')
     parser.add_argument('--hours', type=float, default=3)
@@ -301,7 +301,7 @@ def main(argv: list[str] | None = None) -> None:
 if __name__ == '__main__':
     if sys.argv[1:2] == ['models']:
         models_main(sys.argv[2:])
-    elif sys.argv[1:2] == ['now']:
-        now_main(sys.argv[2:])
+    elif sys.argv[1:2] == ['recently']:
+        recently_main(sys.argv[2:])
     else:
         main()
