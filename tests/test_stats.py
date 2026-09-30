@@ -48,5 +48,30 @@ class SummarizeTest(unittest.TestCase):
         self.assertIn('样本较少', text)
 
 
+class ByModelTest(unittest.TestCase):
+    def test_plain_average_per_model_and_period(self):
+        day = 86400
+        records = [rec(1, 80, kind='checkpoint'), rec(2, 40), rec(30, 60),
+                   rec(1, 50, model='m2'), rec(24 * 10, 0)]
+        models = stats.by_model(records, 7, 'day', now=NOW)
+        self.assertEqual([m['model'] for m in models], ['m1', 'm2'])
+        first = models[0]
+        self.assertEqual((first['n'], first['iq']), (3, 60.0))  # kinds are not separated
+        self.assertEqual(sum(p['n'] for p in first['periods']), 3)
+        self.assertTrue(all(0 <= NOW - p['start'] < 8 * day for p in first['periods']))
+
+    def test_periods_align_to_local_clock(self):
+        import time
+        stamp = time.mktime((2026, 9, 30, 14, 25, 0, 0, 0, -1))
+        self.assertEqual(time.localtime(stats.period_start(stamp, '6h'))[3:5], (12, 0))
+        self.assertEqual(time.localtime(stats.period_start(stamp, 'hour'))[3:5], (14, 0))
+        self.assertEqual(time.localtime(stats.period_start(stamp, 'day'))[3:5], (0, 0))
+
+    def test_render_marks_small_samples(self):
+        text = stats.render_models(stats.by_model([rec(1, 70)], 7, 'day', now=NOW), 'codex', 7, 'day', 'zh')
+        self.assertIn('m1  共 1 条 · 回答智商分 70', text)
+        self.assertIn('样本少', text)
+
+
 if __name__ == '__main__':
     unittest.main()

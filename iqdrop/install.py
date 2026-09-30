@@ -22,9 +22,10 @@ description: >-
   Report how smart the current coding agent has been recently, from the iqdrop scores that
   Jev gave its answers: average Answer IQ and Understanding over the last few hours, compared
   with the same model's own baseline, plus the most frequent problems and the lowest-scored
-  answers. Use when the user asks how the agent or model has been doing, whether it got
-  dumber or was nerfed, for its IQ over the last N hours, or for iqdrop stats. 用户问“最近 3
-  小时智商怎么样”“是不是降智了”“这个模型最近表现如何”时使用。
+  answers; or a per-model score over its history, split by day or by hours. Use when the user
+  asks how the agent or model has been doing, whether it got dumber or was nerfed, for its IQ
+  over the last N hours, for a score per model, or for iqdrop stats. 用户问“最近 3 小时智商怎么样”
+  “是不是降智了”“各个模型分数怎么样”“这个模型最近表现如何”时使用。
 ---
 
 # iqdrop stats
@@ -39,6 +40,17 @@ Run this and show the output to the user as is:
 - Add `--model <id>` to look at a specific model; by default it reports the model behind the
   most recent scored answer, which is normally the one you are running as.
 - Add `--json` if you need the raw numbers.
+
+When the user asks for a score per model, how each model has done over its history, or how
+a model varied over time, run this instead and show the output as is:
+
+```bash
+{command} models --client {client} --days 7 --period day
+```
+
+`--period` can be `day`, `6h`, `3h` or `hour`; use a shorter period when the user suspects the
+model swings within a day. Scores here are a plain average of all replies. Periods marked as a
+small sample (fewer than 5 answers) should not be read as a change.
 
 After the output, add at most two sentences of reading:
 

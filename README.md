@@ -85,6 +85,21 @@ Baseline, previous 7 days: Answer IQ 61.7 · Understanding 86.4 · n=326
 
 It reports the model behind the latest answer (`--model` to pick another), compares it with the same model's previous 7 days (`--baseline-days`), and lists the most frequent problems and the lowest-scored answers. The comparison is made reply kind by reply kind, so a stretch with more checkpoints, which score higher, does not look like an improvement. `--json` gives raw numbers.
 
+### Score per model
+
+```bash
+iqdrop models --days 7 --period day      # --period: day, 6h, 3h or hour
+```
+
+```
+gpt-6-astra  543 answers · Answer IQ 63.2 · Understanding 87.1
+  09-28   64.1  ██████      n=183
+  09-29   65.4  ███████     n=146
+  09-30   63.5  ██████      n=83
+```
+
+A plain average of all replies per model, overall and per period, so you can see a model's level and how much it swings. Periods with fewer than 5 answers are marked as a small sample.
+
 To ask the agent directly ("how smart have you been in the last 3 hours?"), install the skill:
 
 ```bash

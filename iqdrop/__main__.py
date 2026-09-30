@@ -13,6 +13,9 @@ def main() -> None:
     elif action == 'stats':
         from iqdrop import stats
         stats.main(sys.argv[2:])
+    elif action == 'models':
+        from iqdrop import stats
+        stats.models_main(sys.argv[2:])
     else:
         from iqdrop import install
         install.main(sys.argv[1:])
