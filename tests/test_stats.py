@@ -48,6 +48,22 @@ class SummarizeTest(unittest.TestCase):
         self.assertIn('样本较少', text)
 
 
+class CurrentTest(unittest.TestCase):
+    def test_current_model_comes_from_this_session(self):
+        records = [dict(rec(1, 80, model='a'), session='s1'), dict(rec(2, 60, model='a'), session='s2'),
+                   dict(rec(0.5, 30, model='b'), session='s2'), dict(rec(5, 10, model='a'), session='s1')]
+        summary = stats.current(records, 3, session='s1', now=NOW)
+        self.assertEqual((summary['model'], summary['n'], summary['iq']), ('a', 2, 70.0))
+        self.assertEqual(stats.current(records, 3, now=NOW)['model'], 'b')
+
+    def test_render_current(self):
+        line = stats.render_current({'model': 'a', 'hours': 3, 'n': 7, 'iq': 64.7, 'understanding': 90.5}, 'zh')
+        self.assertEqual(line, 'a · 最近 3 小时 · 共 7 条 · 平均回答智商分 64.7 · 平均理解度 90.5')
+        self.assertIn('样本少', stats.render_current({'model': 'a', 'hours': 3, 'n': 2, 'iq': 1, 'understanding': 1}, 'zh'))
+        self.assertEqual(stats.render_current({'model': None, 'hours': 3, 'n': 0}, 'en'),
+                         'No scored answers in the last 3 h.')
+
+
 class ByModelTest(unittest.TestCase):
     def test_plain_average_per_model_and_period(self):
         day = 86400

@@ -100,11 +100,20 @@ gpt-6-astra  543 answers · Answer IQ 63.2 · Understanding 87.1
 
 A plain average of all replies per model, overall and per period, so you can see a model's level and how much it swings. Periods with fewer than 5 answers are marked as a small sample.
 
-To ask the agent directly ("how smart have you been in the last 3 hours?"), install the skill:
+### Ask the agent
 
 ```bash
 iqdrop install-skill codex     # or claude / all
 ```
+
+This installs two skills:
+
+| Skill | Ask something like | Answers with |
+|---|---|---|
+| `iqdrop-now` | "How smart have you been in the last 3 hours?" | One line: the current agent's average Answer IQ and Understanding over the window (`iqdrop now --hours 3`) |
+| `iqdrop-history` | "How does each model score?" "Show astra by 6 hours" | The per-model history above (`iqdrop models`) |
+
+The current agent is the model behind the latest answer in the session you ask from; in a fresh session with no scored answer yet, the latest answer overall.
 
 ## Where to see the evidence
 

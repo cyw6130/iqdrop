@@ -15,55 +15,59 @@ from iqdrop.hook import CONFIG_FILE, TEXT
 
 HOOK_SCRIPT = Path(__file__).resolve().with_name('hook.py')
 STATS_SCRIPT = HOOK_SCRIPT.with_name('stats.py')
-SKILL_NAME = 'iqdrop-stats'
-SKILL = '''---
-name: iqdrop-stats
+LEGACY_SKILLS = ('iqdrop-stats',)
+SKILLS = {
+    'iqdrop-now': '''---
+name: iqdrop-now
 description: >-
-  Report how smart the current coding agent has been recently, from the iqdrop scores that
-  Jev gave its answers: average Answer IQ and Understanding over the last few hours, compared
-  with the same model's own baseline, plus the most frequent problems and the lowest-scored
-  answers; or a per-model score over its history, split by day or by hours. Use when the user
-  asks how the agent or model has been doing, whether it got dumber or was nerfed, for its IQ
-  over the last N hours, for a score per model, or for iqdrop stats. 用户问“最近 3 小时智商怎么样”
-  “是不是降智了”“各个模型分数怎么样”“这个模型最近表现如何”时使用。
+  Report the current coding agent's average iqdrop score over the last few hours: how many
+  answers Jev scored and their average Answer IQ and Understanding, for the model this session
+  is using. Use when the user asks how smart the agent is right now or has been in the last few
+  hours, e.g. "最近 3 小时智商怎么样" "你现在状态如何" "刚才表现怎么样". For per-model history or
+  comparisons between models, use iqdrop-history instead.
 ---
 
-# iqdrop stats
+# iqdrop now
+
+Run this and show its one-line output to the user as is:
+
+```bash
+{command} now --client {client} --hours 3
+```
+
+- Change `--hours` when the user names another window ("today" is `--hours 24`).
+- Add `--model <id>` only when the user asks about a specific model.
+
+Add nothing beyond that line, except one short sentence when it is marked as a small sample.
+''',
+    'iqdrop-history': '''---
+name: iqdrop-history
+description: >-
+  Show long-term iqdrop scores per model: each model's average Answer IQ and Understanding over
+  its history, split by day or by hours to show how it varied, with Codex and Claude Code models
+  ranked together. Use when the user asks for a score per model, how models compare, a model's
+  long-term or historical performance, or whether a model swings over time, e.g. "各个模型分数怎么样"
+  "astra 按 6 小时看一下" "长期表现如何". For just the current agent's recent average, use iqdrop-now.
+---
+
+# iqdrop history
 
 Run this and show the output to the user as is:
 
 ```bash
-{command} --client {client} --hours 3
+{command} models --client all --days 30 --period day
 ```
 
-- Change `--hours` when the user names another window ("today" is `--hours 24`).
-- Add `--model <id>` to look at a specific model; by default it reports the model behind the
-  most recent scored answer, which is normally the one you are running as.
-- Add `--json` if you need the raw numbers.
+- `--period` can be `day`, `6h`, `3h` or `hour`; use a shorter period when the user suspects a
+  model swings within a day. Change `--days` for a longer or shorter history.
+- `--client codex` or `--client claude` limits it to one side.
 
-When the user asks for a score per model, how each model has done over its history, or how
-a model varied over time, run this instead and show the output as is:
-
-```bash
-{command} models --client all --days 7 --period day
-```
-
-It ranks the models of both Codex and Claude Code together. `--period` can be `day`, `6h`,
-`3h` or `hour`; use a shorter period when the user suspects the
-model swings within a day. Scores here are a plain average of all replies. Periods marked as a
-small sample (fewer than 5 answers) should not be read as a change.
-
-After the output, add at most two sentences of reading:
-
-- The baseline comparison is by reply kind, so a mix with more checkpoints does not look like
-  an improvement. A drop of 10 points or more against the baseline, over at least 5 answers,
-  is worth pointing out; smaller moves are noise.
-- Say plainly when the sample is small or there is no baseline yet. Do not claim the model was
-  degraded on this evidence alone: scores depend on task difficulty and come from another
-  model.
-
-Scores live in `~/.iqdrop/{client}/scores/`. Do not edit or delete them.
-'''
+After the output, add at most two sentences. Scores are a plain average of all replies. Periods
+marked as a small sample (fewer than 5 answers) should not be read as a change, and differences
+between Codex and Claude Code models partly reflect different tasks. Do not claim a model was
+degraded on this evidence alone.
+''',
+}
 MARKER = 'iqdrop'
 
 
@@ -152,18 +156,26 @@ def uninstall(client: str) -> Path:
     return path
 
 
-def skill_dir(client: str) -> Path:
+def skills_root(client: str) -> Path:
     if client == 'codex':
-        return Path(os.environ.get('CODEX_HOME') or Path.home() / '.codex') / 'skills' / SKILL_NAME
-    return Path(os.environ.get('CLAUDE_CONFIG_DIR') or Path.home() / '.claude') / 'skills' / SKILL_NAME
+        return Path(os.environ.get('CODEX_HOME') or Path.home() / '.codex') / 'skills'
+    return Path(os.environ.get('CLAUDE_CONFIG_DIR') or Path.home() / '.claude') / 'skills'
 
 
-def install_skill(client: str) -> Path:
+def install_skills(client: str) -> list[Path]:
+    root = skills_root(client)
+    for name in LEGACY_SKILLS:  # replaced by the skills below; only remove what iqdrop wrote
+        old = root / name / 'SKILL.md'
+        if old.exists() and 'iqdrop' in old.read_text(encoding='utf-8'):
+            shutil.rmtree(old.parent)
     command = ' '.join(shlex.quote(part) for part in (interpreter(), str(STATS_SCRIPT)))
-    path = skill_dir(client) / 'SKILL.md'
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(SKILL.replace('{command}', command).replace('{client}', client), encoding='utf-8')
-    return path
+    written = []
+    for name, template in SKILLS.items():
+        path = root / name / 'SKILL.md'
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(template.replace('{command}', command).replace('{client}', client), encoding='utf-8')
+        written.append(path)
+    return written
 
 
 def set_config(updates: dict) -> None:
@@ -182,7 +194,7 @@ def main(argv: list[str] | None = None) -> None:
     for name in ('install', 'uninstall'):
         sub = commands.add_parser(name, help=f'{name} the hooks')
         sub.add_argument('client', choices=('codex', 'claude', 'all'))
-    skill = commands.add_parser('install-skill', help='install the iqdrop-stats skill')
+    skill = commands.add_parser('install-skill', help='install the iqdrop-now and iqdrop-history skills')
     skill.add_argument('client', choices=('codex', 'claude', 'all'))
     commands.add_parser('set-key', help='store your Typesafe (Jev) API key')
     lang = commands.add_parser('set-lang', help='language of the score line')
@@ -198,7 +210,8 @@ def main(argv: list[str] | None = None) -> None:
         print(f'Next: run `iqdrop set-key` if you have not stored a Jev key yet ({CONFIG_FILE}).')
     elif args.command == 'install-skill':
         for client in clients:
-            print(f'installed the {SKILL_NAME} skill for {client} at {install_skill(client)}')
+            for path in install_skills(client):
+                print(f'installed {path.parent.name} for {client} at {path}')
     elif args.command == 'uninstall':
         for client in clients:
             print(f'removed {client} hooks from {uninstall(client)}')

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import statistics
 import sys
 import time
@@ -26,7 +27,9 @@ TEXT = {
         'models_head': '{client} · last {days:g} days · Answer IQ by model (plain average of all replies)',
         'models_none': 'No scored answers from {client} in the last {days:g} days.',
         'model_line': '{model}  {n} answers · Answer IQ {iq} · Understanding {und}',
-        'few': 'few', 'problems': 'Most frequent problems',
+        'few': 'few',
+        'now': '{model} · last {hours:g} h · {n} answers · Answer IQ {iq} · Understanding {und}',
+        'now_none': 'No scored answers{model} in the last {hours:g} h.', 'problems': 'Most frequent problems',
         'no_problems': 'none flagged', 'lowest': 'Lowest scored', 'small': 'Small sample: read with care.',
         'check_names': {'factual_error': 'factual or reasoning error', 'unverified_claim': 'unverified claims',
                         'missing_deliverable': 'incomplete delivery',
@@ -44,7 +47,9 @@ TEXT = {
         'models_head': '{client} · 最近 {days:g} 天 · 各模型回答智商分（所有回复直接平均）',
         'models_none': '最近 {days:g} 天没有 {client} 的评分记录。',
         'model_line': '{model}  共 {n} 条 · 回答智商分 {iq} · 理解度 {und}',
-        'few': '样本少', 'problems': '最常见的问题',
+        'few': '样本少',
+        'now': '{model} · 最近 {hours:g} 小时 · 共 {n} 条 · 平均回答智商分 {iq} · 平均理解度 {und}',
+        'now_none': '最近 {hours:g} 小时没有{model}的评分记录。', 'problems': '最常见的问题',
         'no_problems': '没有被标出的问题', 'lowest': '得分最低', 'small': '样本较少，结论仅供参考。',
         'check_names': {'factual_error': '事实或推理错误', 'unverified_claim': '缺少验证证据',
                         'missing_deliverable': '交付不完整', 'constraint_violation': '违反明确约束',
@@ -58,6 +63,7 @@ def load(root: Path) -> list[dict]:
     for path in root.glob('scores/*/*.json'):
         record = read_json(path, None)
         if isinstance(record, dict) and record.get('status') == 'scored':
+            record['session'] = path.parent.name
             records.append(record)
     return records
 
@@ -163,6 +169,50 @@ def render(summary: dict, client: str, lang: str) -> str:
     return '\n'.join(lines)
 
 
+def current(records: list[dict], hours: float, model: str | None = None,
+            session: str | None = None, now: float | None = None) -> dict:
+    """Plain averages over the window for the current agent's model.
+
+    The current model is the one behind the latest answer in this session when the session
+    is known, else the one behind the latest answer overall."""
+    now = time.time() if now is None else now
+    if model is None:
+        pool = [r for r in records if r.get('session') == session] if session else []
+        latest = max(pool or records, key=lambda r: r.get('time_unix', 0), default={})
+        model = latest.get('assistant_model')
+    rows = [r for r in records if r.get('assistant_model') == model
+            and r.get('time_unix', 0) >= now - hours * 3600]
+    return {'model': model, 'hours': hours, 'n': len(rows),
+            'iq': mean([r['scores_100']['answer_iq'] for r in rows]),
+            'understanding': mean([r['scores_100']['intent_understanding'] for r in rows])}
+
+
+def render_current(summary: dict, lang: str) -> str:
+    text = TEXT[lang]
+    if not summary['n']:
+        model = summary['model']
+        name = (f' {model} ' if lang == 'zh' else f' for {model}') if model else ''
+        return text['now_none'].format(model=name, hours=summary['hours'])
+    line = text['now'].format(model=summary['model'], hours=summary['hours'], n=summary['n'],
+                              iq=summary['iq'], und=summary['understanding'])
+    return line + (f'（{text["few"]}）' if lang == 'zh' else f' ({text["few"]})') * (summary['n'] < 5)
+
+
+def now_main(argv: list[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(prog='iqdrop now',
+                                     description="The current agent's average score over the last few hours")
+    parser.add_argument('--client', choices=('codex', 'claude'), default='codex')
+    parser.add_argument('--hours', type=float, default=3)
+    parser.add_argument('--model', help='Model id; defaults to the one this session is using')
+    parser.add_argument('--session', default=os.environ.get('CODEX_THREAD_ID'),
+                        help='Session id used to find the current model (Codex sets CODEX_THREAD_ID)')
+    parser.add_argument('--json', action='store_true')
+    args = parser.parse_args(argv)
+    config = settings()
+    summary = current(load(config['data_dir'] / args.client), args.hours, args.model, args.session)
+    print(json.dumps(summary, ensure_ascii=False) if args.json else render_current(summary, config['lang']))
+
+
 PERIODS = {'day': 86400, '6h': 6 * 3600, '3h': 3 * 3600, 'hour': 3600}
 
 
@@ -251,5 +301,7 @@ def main(argv: list[str] | None = None) -> None:
 if __name__ == '__main__':
     if sys.argv[1:2] == ['models']:
         models_main(sys.argv[2:])
+    elif sys.argv[1:2] == ['now']:
+        now_main(sys.argv[2:])
     else:
         main()

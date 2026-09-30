@@ -279,6 +279,15 @@ class InstallTest(unittest.TestCase):
         install.uninstall('codex')
         self.assertEqual(json.loads(path.read_text())['hooks'], {'Stop': [other]})
 
+    def test_install_skills_replaces_the_legacy_skill(self):
+        legacy = Path(self.tmp.name) / 'skills' / 'iqdrop-stats' / 'SKILL.md'
+        legacy.parent.mkdir(parents=True)
+        legacy.write_text('name: iqdrop-stats')
+        paths = install.install_skills('codex')
+        self.assertEqual(sorted(p.parent.name for p in paths), ['iqdrop-history', 'iqdrop-now'])
+        self.assertFalse(legacy.parent.exists())
+        self.assertIn('now --client codex --hours 3', paths[0].read_text() + paths[1].read_text())
+
     def test_set_config_replaces_existing_value(self):
         conf = Path(self.tmp.name) / 'config.env'
         conf.write_text('export TYPESAFE_API_KEY=old\nIQDROP_LANG=en\n')
