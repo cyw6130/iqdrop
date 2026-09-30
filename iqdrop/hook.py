@@ -109,6 +109,7 @@ TEXT = {
         'unscored': 'not scored', 'checks': 'Jev checks: ', 'no_issue': 'no clear problems',
         'sep': '; ', 'end': '.',
         'errors': {'MissingKey': 'no Jev API key configured', 'MissingPrompt': 'prompt not captured',
+                   'ImageOnly': 'the prompt was only an image, which Jev cannot see',
                    'default': 'Jev call failed'},
         'speed': {'normal': 'Speed normal', 'slow': '🚧 Slow', 'very_slow': '🚧🚧 Very slow',
                   'extremely_slow': '🚧🚧🚧 Extremely slow', 'uncertain': 'Speed unclear'},
@@ -123,6 +124,7 @@ TEXT = {
         'unscored': '未评分', 'checks': 'Jev 检查：', 'no_issue': '未发现明显问题',
         'sep': '；', 'end': '。',
         'errors': {'MissingKey': '未配置 Jev 密钥', 'MissingPrompt': '未记录到提问',
+                   'ImageOnly': '只发了图片，Jev 看不到',
                    'default': 'Jev 调用失败'},
         'speed': {'normal': '速度正常', 'slow': '🚧 偏慢', 'very_slow': '🚧🚧 很慢',
                   'extremely_slow': '🚧🚧🚧 非常慢', 'uncertain': '速度待判断'},
@@ -138,6 +140,10 @@ class MissingKey(Exception):
 
 
 class MissingPrompt(Exception):
+    pass
+
+
+class ImageOnly(Exception):
     pass
 
 
@@ -215,12 +221,25 @@ def iso_to_unix(value: str) -> float:
     return datetime.fromisoformat(value.replace('Z', '+00:00')).timestamp()
 
 
+def user_message(payload: dict) -> dict | None:
+    """Text and image count of a real user message in a Codex rollout, else None."""
+    item = payload.get('item')
+    if payload.get('type') != 'item_completed' or not isinstance(item, dict) or item.get('type') != 'UserMessage':
+        return None
+    parts = [c for c in item.get('content') or [] if isinstance(c, dict)]
+    text = '\n'.join(c.get('text', '') for c in parts if c.get('type') == 'text').strip()
+    return {'text': text, 'images': sum('image' in str(c.get('type', '')) for c in parts)}
+
+
 def codex_timing(event: dict) -> dict:
-    """Recover start time and model of a Codex turn from its rollout transcript."""
+    """Recover start time, model and prompt of a Codex turn from its rollout transcript.
+
+    The prompt is a fallback for turns the capture hook missed: an automatic retry after
+    an error has no new user message, so the latest earlier one is what it answers."""
     path, turn_id = event.get('transcript_path'), event.get('turn_id')
     if not path or not turn_id:
         return {}
-    result, active = {}, False
+    result, active, latest = {}, False, None
     try:
         with Path(path).open(encoding='utf-8') as stream:
             for line in stream:
@@ -234,6 +253,11 @@ def codex_timing(event: dict) -> dict:
                             result['started_unix'] = iso_to_unix(item['timestamp'])
                     if active and item.get('type') == 'turn_context':
                         result['model'] = payload.get('model')
+                    message = user_message(payload) if item.get('type') == 'event_msg' else None
+                    if message is not None:
+                        latest = message
+                        if active:
+                            result['own_message'] = True
                     if (active and item.get('type') == 'event_msg'
                             and kind in ('task_complete', 'task_completed')
                             and payload.get('turn_id') == turn_id):
@@ -243,6 +267,9 @@ def codex_timing(event: dict) -> dict:
                     continue
     except OSError:
         return {}
+    if latest is not None:
+        result['prompt'] = latest['text']
+        result['image_only'] = not latest['text'] and latest['images'] > 0
     return result
 
 
@@ -469,9 +496,12 @@ def handle(event: dict, client: str, config: dict | None = None) -> dict:
     history = history if isinstance(history, list) else []
     # Claude Code also fires UserPromptSubmit for background-task notifications, so the
     # transcript's own turn start is the better source there.
-    sources = (codex_timing(event), captured) if client == 'codex' else (captured, turn)
-    prompt = (turn.get('prompt') or captured.get('prompt') if client == 'claude'
-              else captured.get('prompt')) or ''
+    rollout = codex_timing(event) if client == 'codex' else {}
+    sources = (rollout, captured) if client == 'codex' else (captured, turn)
+    if client == 'claude':
+        prompt = turn.get('prompt') or captured.get('prompt') or ''
+    else:
+        prompt = (captured.get('prompt') or '').strip() or rollout.get('prompt') or ''
     timing = {}
     for source in sources:
         timing.update((k, v) for k, v in source.items() if v is not None)
@@ -482,7 +512,7 @@ def handle(event: dict, client: str, config: dict | None = None) -> dict:
               'elapsed_seconds': elapsed}
     try:
         if not prompt.strip():
-            raise MissingPrompt()
+            raise ImageOnly() if rollout.get('image_only') else MissingPrompt()
         scores, evidence = grade(config, prompt, answer, history[-2:], elapsed)
         record.update(evidence, scores_100=scores, status='scored',
                       iq_alert=scores['answer_iq'] < config['alert_below'])

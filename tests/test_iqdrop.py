@@ -193,6 +193,47 @@ class HandleTest(unittest.TestCase):
                              'last_assistant_message': 'a'}, client, conf)
         self.assertEqual(notify.call_count, 1)
 
+    def codex_rollout(self, second_turn_message):
+        def started(turn):
+            return {'type': 'event_msg', 'timestamp': '2026-09-30T10:00:00Z',
+                    'payload': {'type': 'task_started', 'turn_id': turn}}
+
+        def message(turn, content):
+            return {'type': 'event_msg', 'payload': {'type': 'item_completed', 'turn_id': turn,
+                    'item': {'type': 'UserMessage', 'content': content}}}
+
+        rows = [started('t1'), message('t1', [{'type': 'text', 'text': 'check MinerU'}]),
+                {'type': 'event_msg', 'payload': {'type': 'task_complete', 'turn_id': 't1'}},
+                started('t2')]
+        if second_turn_message:
+            rows.append(message('t2', second_turn_message))
+        return transcript(rows)
+
+    def stop_without_capture(self, rollout):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(hook, 'grade', return_value=(
+                {'answer_iq': 70.0, 'intent_understanding': 80.0}, {'checks': {}})) as grade:
+            output = hook.handle({'session_id': 's', 'turn_id': 't2', 'hook_event_name': 'Stop',
+                                  'last_assistant_message': 'found it', 'transcript_path': rollout},
+                                 'codex', config(tmp))
+        return output, grade
+
+    def test_codex_retry_turn_answers_the_previous_prompt(self):
+        path = self.codex_rollout(None)
+        try:
+            _, grade = self.stop_without_capture(path)
+            self.assertEqual(grade.call_args[0][1], 'check MinerU')
+        finally:
+            os.unlink(path)
+
+    def test_codex_image_only_prompt_says_so(self):
+        path = self.codex_rollout([{'type': 'text', 'text': '\n'}, {'type': 'image', 'url': 'x'}])
+        try:
+            output, grade = self.stop_without_capture(path)
+            grade.assert_not_called()
+            self.assertIn('only an image', output['systemMessage'])
+        finally:
+            os.unlink(path)
+
     def test_forced_continuation_is_not_scored_again(self):
         with tempfile.TemporaryDirectory() as tmp:
             output = hook.handle({'session_id': 's1', 'turn_id': 't1', 'hook_event_name': 'Stop',
